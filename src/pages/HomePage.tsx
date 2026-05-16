@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import PageLayout from '../components/PageLayout';
 import BrandMarquee from '../components/BrandMarquee';
 import FAQAccordion from '../components/FAQAccordion';
 import ProductCard from '../components/ProductCard';
-import { products } from '../data/products';
+import { products as staticProducts } from '../data/products';
+import { db } from '../firebase';
+import { collection, getDocs, query, limit } from 'firebase/firestore';
 import heroImage from '../assets/hero-section-image.png';
 import heroWebVideo from '../assets/herovideoWeb.mp4';
 import heroMobileVideo from '../assets/herovideoMobile.mp4';
@@ -62,18 +65,18 @@ function Hero() {
           </div>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <a
-              href="/collections/custom-patches"
+            <Link
+              to="/collections/custom-patches"
               className="inline-flex w-full items-center justify-center bg-[#e11d2f] px-6 py-3 text-sm font-bold text-white sm:w-auto sm:min-w-[220px] sm:rounded-none"
             >
               Shop Custom Patches
-            </a>
-            <a
-              href="/collections/rush-order"
+            </Link>
+            <Link
+              to="/collections/rush-order"
               className="inline-flex w-full items-center justify-center border border-white bg-white px-6 py-3 text-sm font-bold text-[#111827] sm:w-auto sm:min-w-[220px] sm:rounded-none"
             >
               Shop 5 Day Rush Patches
-            </a>
+            </Link>
           </div>
         </div>
 
@@ -93,6 +96,38 @@ function Hero() {
 }
 
 function ShopAllSection() {
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const productsCollection = collection(db, 'products');
+        const q = query(productsCollection, limit(8));
+        const snapshot = await getDocs(q);
+        const productList = snapshot.docs.map((doc) => ({
+          ...doc.data(),
+          docId: doc.id,
+        }));
+        setProducts(productList);
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        // Fallback to static products
+        setProducts(staticProducts.map((p) => ({
+          id: p.slug,
+          title: p.name,
+          handle: p.slug,
+          price: parseFloat(p.price.replace('$', '')),
+          image: '',
+        })));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
   return (
     <section className="bg-white">
       <div className="mx-auto w-full max-w-[1480px] px-4 py-12 sm:px-6 lg:px-8 lg:py-14">
@@ -100,17 +135,31 @@ function ShopAllSection() {
           Shop All Patch Types
         </h2>
 
-        <div className="mt-10 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((p) => (
-            <ProductCard
-              key={p.slug}
-              product={p}
-              ctaHref={`/products/${p.slug}`}
-              badgeText={p.minQty}
-              placeholderImageText={p.name}
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="mt-10 text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+            <p className="mt-2 text-gray-600">Loading products...</p>
+          </div>
+        ) : (
+          <div className="mt-10 grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {products.map((p) => (
+              <ProductCard
+                key={p.docId || p.id}
+                product={{
+                  slug: p.handle || p.id,
+                  name: p.title,
+                  price: `$${p.price?.toFixed(2) || '0.00'}`,
+                  minQty: '10pc min',
+                  description: p.description || 'Custom patch product',
+                  imageUrl: p.image,
+                }}
+                ctaHref={`/products/${p.handle || p.id}`}
+                badgeText="10pc min"
+                placeholderImageText={p.title}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

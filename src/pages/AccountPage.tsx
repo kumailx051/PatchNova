@@ -1,10 +1,85 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { setDoc, doc, getDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import PageLayout from '../components/PageLayout';
 
 type Tab = 'login' | 'register';
 
 export default function AccountPage() {
   const [tab, setTab] = useState<Tab>('login');
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const ADMIN_CODE = '1234'; // Simple admin code
+  
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  // Register form state
+  const [regFirstName, setRegFirstName] = useState('');
+  const [regLastName, setRegLastName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regAdminCode, setRegAdminCode] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      
+      // Get user role from Firestore
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      const userData = userDoc.data();
+      
+      if (userData?.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
+      
+      // Determine if user is admin based on admin code
+      const isAdmin = regAdminCode === ADMIN_CODE;
+      
+      // Save user to Firestore with role
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        firstName: regFirstName,
+        lastName: regLastName,
+        email: regEmail,
+        role: isAdmin ? 'admin' : 'user',
+        createdAt: new Date(),
+      });
+      
+      if (isAdmin) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <PageLayout>
@@ -41,13 +116,21 @@ export default function AccountPage() {
           </div>
 
           <div className="mt-6 rounded-2xl border border-[#e5eaf0] bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.06)] sm:p-8">
+            {error && (
+              <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600 border border-red-200">
+                {error}
+              </div>
+            )}
+            
             {tab === 'login' ? (
-              <form className="space-y-5">
+              <form className="space-y-5" onSubmit={handleLogin}>
               <div>
                 <label className="block text-sm font-semibold text-black">Email</label>
                 <input
                   type="email"
                   required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
                   className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                   placeholder="your@email.com"
                 />
@@ -58,6 +141,8 @@ export default function AccountPage() {
                 <input
                   type="password"
                   required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
                   className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                   placeholder="••••••••"
                 />
@@ -65,9 +150,10 @@ export default function AccountPage() {
 
               <button
                 type="submit"
-                className="h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                disabled={loading}
+                className="h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                Sign In
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
 
               <div className="text-center text-xs text-[#35506b]">
@@ -77,13 +163,15 @@ export default function AccountPage() {
               </div>
             </form>
             ) : (
-              <form className="space-y-5">
+              <form className="space-y-5" onSubmit={handleRegister}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-sm font-semibold text-black">First Name</label>
                     <input
                       type="text"
                       required
+                      value={regFirstName}
+                      onChange={(e) => setRegFirstName(e.target.value)}
                       className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                       placeholder="First"
                     />
@@ -94,6 +182,8 @@ export default function AccountPage() {
                     <input
                       type="text"
                       required
+                      value={regLastName}
+                      onChange={(e) => setRegLastName(e.target.value)}
                       className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                       placeholder="Last"
                     />
@@ -105,6 +195,8 @@ export default function AccountPage() {
                   <input
                     type="email"
                     required
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
                     className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                     placeholder="your@email.com"
                   />
@@ -115,16 +207,31 @@ export default function AccountPage() {
                   <input
                     type="password"
                     required
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
                     placeholder="Create password"
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-semibold text-black">Admin Code (Optional)</label>
+                  <input
+                    type="password"
+                    value={regAdminCode}
+                    onChange={(e) => setRegAdminCode(e.target.value)}
+                    className="mt-2 h-12 w-full rounded-xl border border-[#d9e1ea] bg-white px-4 text-sm outline-none transition-colors placeholder:text-slate-400 focus:border-black"
+                    placeholder="Leave blank for regular user"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Enter admin code if you're registering as an administrator</p>
+                </div>
+
                 <button
                   type="submit"
-                  className="h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                  disabled={loading}
+                  className="h-12 w-full rounded-xl bg-black px-4 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 >
-                  Create Account
+                  {loading ? 'Creating Account...' : 'Create Account'}
                 </button>
               </form>
             )}

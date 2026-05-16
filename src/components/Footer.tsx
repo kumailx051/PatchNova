@@ -1,9 +1,22 @@
 import React from 'react';
+import { Facebook, Instagram, Music2 } from 'lucide-react';
 
 const social = [
-  { label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61584071697295' },
-  { label: 'Instagram', href: 'https://www.instagram.com/patchkrazeusa' },
-  { label: 'TikTok', href: 'https://www.tiktok.com/@patchkraze1' },
+  {
+    label: 'Facebook',
+    href: 'https://www.facebook.com/profile.php?id=61584071697295',
+    icon: Facebook,
+  },
+  {
+    label: 'Instagram',
+    href: 'https://www.instagram.com/patchkrazeusa',
+    icon: Instagram,
+  },
+  {
+    label: 'TikTok',
+    href: 'https://www.tiktok.com/@patchkraze1',
+    icon: Music2,
+  },
 ];
 
 export default function Footer() {
@@ -322,16 +335,25 @@ export default function Footer() {
             </ul>
           </div>
         </div>
+      </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-between gap-6">
+      <div className="mt-10 border-t border-white/10">
+        <div className="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-6 px-4 py-8 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             {social.map((s) => (
-              <a key={s.label} href={s.href} className="text-white/80 hover:underline">
-                {s.label}
+              <a
+                key={s.label}
+                href={s.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={s.label}
+                className="text-white/70 transition-colors hover:text-white"
+              >
+                <s.icon className="h-6 w-6" />
               </a>
             ))}
           </div>
-          <div className="text-sm text-white/80">Copyright © 2026 Patch Kraze.</div>
+          <div className="text-sm text-white/80">Copyright © 2026 Patch Nova.</div>
           <a href="/policies/privacy-policy" className="text-sm text-white/80 hover:underline">
             Privacy Policy
           </a>

@@ -105,19 +105,86 @@ Our contact information is posted below:
 [orders@patchkraze.com](mailto:orders@patchkraze.com)
 `;
 
+type TermsBlock = {
+  type: 'heading' | 'paragraph';
+  text: string;
+};
+
+function normalizeText(text: string) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1')
+    .replace(/\\\[LINK\\\]/g, '[LINK]')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getTermsBlocks(): TermsBlock[] {
+  const lines = termsText.split('\n');
+  const blocks: TermsBlock[] = [];
+  const buffer: string[] = [];
+
+  const flushParagraph = () => {
+    if (!buffer.length) return;
+    blocks.push({ type: 'paragraph', text: normalizeText(buffer.join(' ')) });
+    buffer.length = 0;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushParagraph();
+      continue;
+    }
+
+    if (line === 'Terms of service' || line === '================') {
+      continue;
+    }
+
+    if (line.includes('NOTE TO MERCHANT')) {
+      continue;
+    }
+
+    if (line.startsWith('**') && line.endsWith('**')) {
+      flushParagraph();
+      blocks.push({ type: 'heading', text: normalizeText(line) });
+      continue;
+    }
+
+    buffer.push(line);
+  }
+
+  flushParagraph();
+  return blocks;
+}
+
 export default function TermsPage() {
+  const blocks = getTermsBlocks();
+
   return (
     <PageLayout>
-      <div className="mx-auto max-w-5xl px-4 py-12">
-        <h1 className="text-center text-3xl font-extrabold text-black">
+      <div className="mx-auto w-full max-w-[1480px] px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+        <h1 className="mx-auto max-w-[360px] text-center text-[54px] font-normal leading-[0.92] tracking-tight text-black sm:max-w-[420px] sm:text-[64px]">
           Terms of Service
         </h1>
 
-        <div className="mt-8 rounded-none border border-[#eaeef3] bg-white p-4">
-          <div className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-[#111827]">
-            {termsText}
-          </div>
-        </div>
+        <article className="mx-auto mt-8 max-w-[760px] text-[13px] leading-[1.45] text-black sm:text-[14px]">
+          {blocks.map((block, index) =>
+            block.type === 'heading' ? (
+              <h2
+                key={`${block.text}-${index}`}
+                className="mt-5 mb-1 text-[13px] font-bold uppercase tracking-normal text-black"
+              >
+                {block.text}
+              </h2>
+            ) : (
+              <p key={`${block.text}-${index}`} className="mb-2">
+                {block.text}
+              </p>
+            ),
+          )}
+        </article>
       </div>
     </PageLayout>
   );
